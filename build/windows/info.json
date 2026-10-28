@@ -1,0 +1,15 @@
+{
+	"fixed": {
+		"file_version": "0.1.0"
+	},
+	"info": {
+		"0409": {
+			"ProductVersion": "0.1.0",
+			"CompanyName": "Local Tools",
+			"FileDescription": "本地 PDF 与图片工具箱",
+			"LegalCopyright": "© 2026 Local Tools",
+			"ProductName": "本地工具箱",
+			"Comments": "本地处理，不上传文件"
+		}
+	}
+}
