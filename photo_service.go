@@ -24,6 +24,16 @@ func NewPhotoService() *PhotoService {
 
 // SavePhoto validates the JPEG and opens a native save dialog.
 func (s *PhotoService) SavePhoto(size, color, encoded string) (string, error) {
+	return s.savePhoto("", size, color, encoded)
+}
+
+// SavePhotoBesideSource saves a processed photo beside its original image.
+func (s *PhotoService) SavePhotoBesideSource(sourcePath, size, color, encoded string) (string, error) {
+	return s.savePhoto(sourcePath, size, color, encoded)
+}
+
+// savePhoto validates a JPEG and chooses either a native dialog or source directory.
+func (s *PhotoService) savePhoto(sourcePath, size, color, encoded string) (string, error) {
 	spec, err := photoexport.SizeSpec(size)
 	if err != nil {
 		return "", err
@@ -40,11 +50,17 @@ func (s *PhotoService) SavePhoto(size, color, encoded string) (string, error) {
 	if app == nil {
 		return "", errors.New("桌面窗口尚未就绪")
 	}
-	path, err := app.Dialog.SaveFile().
-		SetMessage("保存证件照").
-		SetFilename(photoexport.DefaultFilename(spec, colorLabel)).
-		AddFilter("JPEG 图片", "*.jpg;*.jpeg").
-		PromptForSingleSelection()
+	var path string
+	if sourcePath != "" {
+		suffix := "_" + strings.TrimSuffix(photoexport.DefaultFilename(spec, colorLabel), ".jpg")
+		path, err = sameSourceOutput(sourcePath, suffix, ".jpg")
+	} else {
+		path, err = app.Dialog.SaveFile().
+			SetMessage("保存证件照").
+			SetFilename(photoexport.DefaultFilename(spec, colorLabel)).
+			AddFilter("JPEG 图片", "*.jpg;*.jpeg").
+			PromptForSingleSelection()
+	}
 	if err != nil || path == "" {
 		return "", err
 	}

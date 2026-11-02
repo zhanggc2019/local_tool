@@ -50,6 +50,16 @@ func NewPDFExportService() *PDFExportService {
 
 // BeginExport validates settings and asks the user where to save the images.
 func (s *PDFExportService) BeginExport(filename, mode, imageFormat string, pageCount int) (ExportTarget, error) {
+	return s.beginExport(filename, "", mode, imageFormat, pageCount)
+}
+
+// BeginExportBesideSource saves converted images in the input PDF's directory.
+func (s *PDFExportService) BeginExportBesideSource(sourcePath, mode, imageFormat string, pageCount int) (ExportTarget, error) {
+	return s.beginExport(filepath.Base(sourcePath), sourcePath, mode, imageFormat, pageCount)
+}
+
+// beginExport validates settings and starts one export at the requested location.
+func (s *PDFExportService) beginExport(filename, sourcePath, mode, imageFormat string, pageCount int) (ExportTarget, error) {
 	var empty ExportTarget
 	if mode != "single" && mode != "split" {
 		return empty, errors.New("无效的分页模式")
@@ -75,7 +85,15 @@ func (s *PDFExportService) BeginExport(filename, mode, imageFormat string, pageC
 		return empty, errors.New("桌面窗口尚未就绪")
 	}
 	var location string
-	if mode == "single" {
+	if sourcePath != "" {
+		if mode == "single" {
+			location, err = sameSourceOutput(sourcePath, "_图片", extension)
+		} else {
+			if _, err = os.Stat(sourcePath); err == nil {
+				location = filepath.Dir(sourcePath)
+			}
+		}
+	} else if mode == "single" {
 		location, err = app.Dialog.SaveFile().
 			SetMessage("保存合成图片").
 			SetFilename(stem+extension).

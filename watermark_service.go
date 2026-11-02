@@ -28,6 +28,16 @@ func NewWatermarkService() *WatermarkService { return &WatermarkService{} }
 
 // SaveRepairedImage validates the generated image and writes it atomically.
 func (s *WatermarkService) SaveRepairedImage(filename, format, encoded string) (string, error) {
+	return s.saveRepairedImage(filename, "", format, encoded)
+}
+
+// SaveRepairedImageBesideSource saves a repaired image beside its source.
+func (s *WatermarkService) SaveRepairedImageBesideSource(sourcePath, format, encoded string) (string, error) {
+	return s.saveRepairedImage(filepath.Base(sourcePath), sourcePath, format, encoded)
+}
+
+// saveRepairedImage validates image data and chooses its output path.
+func (s *WatermarkService) saveRepairedImage(filename, sourcePath, format, encoded string) (string, error) {
 	extension := ".png"
 	mime := "data:image/png;base64,"
 	if format == "jpeg" {
@@ -60,7 +70,12 @@ func (s *WatermarkService) SaveRepairedImage(filename, format, encoded string) (
 	if stem == "" {
 		stem = "图片"
 	}
-	path, err := app.Dialog.SaveFile().SetMessage("保存修复图片").SetFilename(stem+"_修复"+extension).AddFilter("图片", "*"+extension).PromptForSingleSelection()
+	var path string
+	if sourcePath != "" {
+		path, err = sameSourceOutput(sourcePath, "_修复", extension)
+	} else {
+		path, err = app.Dialog.SaveFile().SetMessage("保存修复图片").SetFilename(stem+"_修复"+extension).AddFilter("图片", "*"+extension).PromptForSingleSelection()
+	}
 	if err != nil || path == "" {
 		return "", err
 	}

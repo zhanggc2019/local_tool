@@ -5,18 +5,21 @@ import * as PDFExportService from "./pdfexportservice.js";
 import * as PDFManageService from "./pdfmanageservice.js";
 import * as PhotoService from "./photoservice.js";
 import * as QRCodeService from "./qrcodeservice.js";
+import * as SourceFileService from "./sourcefileservice.js";
 import * as WatermarkService from "./watermarkservice.js";
 export {
     PDFExportService,
     PDFManageService,
     PhotoService,
     QRCodeService,
+    SourceFileService,
     WatermarkService
 };
 
 export type {
     ExportResult,
     ExportTarget,
+    LocalSource,
     PDFManageResult,
     PDFSource
 } from "./models.js";

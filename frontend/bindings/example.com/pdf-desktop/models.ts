@@ -18,12 +18,23 @@ export interface ExportTarget {
 }
 
 /**
+ * LocalSource describes a file selected through the desktop file picker.
+ */
+export interface LocalSource {
+    "name": string;
+    "path": string;
+    "bytes": number;
+}
+
+/**
  * PDFManageResult summarizes a completed PDF operation.
  */
 export interface PDFManageResult {
     "location": string;
     "count": number;
     "bytes": number;
+    "inputBytes": number;
+    "failed": string[] | null;
 }
 
 /**

@@ -18,6 +18,7 @@ func main() {
 		Name:        "本地工具箱",
 		Description: "本地文件与图片工具箱",
 		Services: []application.Service{
+			application.NewService(NewSourceFileService()),
 			application.NewService(NewPDFExportService()),
 			application.NewService(NewPDFManageService()),
 			application.NewService(NewPhotoService()),

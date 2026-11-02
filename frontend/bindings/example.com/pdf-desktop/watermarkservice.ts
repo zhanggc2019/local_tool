@@ -23,3 +23,10 @@ export function OpenWatermarkOutputFolder(): $CancellablePromise<void> {
 export function SaveRepairedImage(filename: string, format: string, encoded: string): $CancellablePromise<string> {
     return $Call.ByID(405033275, filename, format, encoded);
 }
+
+/**
+ * SaveRepairedImageBesideSource saves a repaired image beside its source.
+ */
+export function SaveRepairedImageBesideSource(sourcePath: string, format: string, encoded: string): $CancellablePromise<string> {
+    return $Call.ByID(2307663140, sourcePath, format, encoded);
+}

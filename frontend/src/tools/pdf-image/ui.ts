@@ -1,9 +1,13 @@
 import { PDFExportService } from '../../../bindings/example.com/pdf-desktop';
 import { convertPDF, estimateLayout, loadPDF, renderPreview, type LoadedPDF, type ConversionOptions } from './converter';
 import type { ExportMode, ImageFormat } from './layout';
+import { chooseSources, readSource } from '../source-file';
+import type { LocalSource } from '../../../bindings/example.com/pdf-desktop';
 
 let currentPDF: LoadedPDF | null = null;
+let selectedSources: LocalSource[] = [];
 let busy = false;
+let selecting = false;
 
 /** Returns a required element with a useful startup error if markup is incomplete. */
 function element<T extends HTMLElement>(id: string): T {
@@ -59,7 +63,7 @@ function updateEstimate(): void {
   const box = element<HTMLDivElement>('estimate');
   const button = element<HTMLButtonElement>('convertButton');
   box.classList.remove('warning');
-  if (!currentPDF) {
+  if (!currentPDF || !selectedSources.length) {
     text.textContent = '选择 PDF 后显示预计尺寸';
     button.disabled = true;
     return;
@@ -81,8 +85,8 @@ function updateEstimate(): void {
 }
 
 /** Shows the file name, page count, file size, and first-page preview. */
-async function chooseFile(file: File): Promise<void> {
-  if (busy) return;
+async function chooseFile(file: File): Promise<boolean> {
+  if (busy) return false;
   clearError();
   element<HTMLDivElement>('result').hidden = true;
   const button = element<HTMLButtonElement>('convertButton');
@@ -98,9 +102,11 @@ async function chooseFile(file: File): Promise<void> {
     element<HTMLDivElement>('loadedState').hidden = false;
     element<HTMLElement>('fileName').textContent = next.name;
     element<HTMLElement>('fileMeta').textContent = `${next.sizes.length} 页 · ${fileSize(next.bytes)}`;
+    return true;
   } catch (error) {
     if (next) await next.document.destroy();
     showError(`读取 PDF 失败：${errorText(error)}`);
+    return false;
   } finally {
     button.textContent = '开始转换';
     updateEstimate();
@@ -115,32 +121,69 @@ function updateProgress(completed: number, total: number): void {
   element<HTMLDivElement>('progressBar').style.width = `${percent}%`;
 }
 
+/** Selects native PDF sources and previews the first document. */
+async function chooseNativePDFs(): Promise<void> {
+  if (busy || selecting) return;
+  selecting = true;
+  clearError();
+  try {
+    const picked = await chooseSources('pdf-image', element<HTMLInputElement>('pdfBatch').checked);
+    if (!picked?.length) return;
+    selectedSources = [];
+    element<HTMLDivElement>('pdfQueue').hidden = true;
+    updateEstimate();
+    const first = await readSource('pdf-image', 0, picked[0]);
+    if (!await chooseFile(first)) return;
+    selectedSources = picked;
+    updateEstimate();
+    const summary = element<HTMLDivElement>('pdfQueue');
+    summary.textContent = picked.length > 1 ? `已选择 ${picked.length} 个 PDF · 将逐个导出到各自的原文件夹` : `输出默认保存在 ${picked[0].path.replace(/[\\/][^\\/]+$/, '')}`;
+    summary.hidden = false;
+  } catch (error) { showError(`读取 PDF 失败：${errorText(error)}`); }
+  finally { selecting = false; }
+}
+
 /** Renders the PDF and writes each image through its Wails export session. */
 async function startConversion(): Promise<void> {
-  if (!currentPDF || busy) return;
+  if (!currentPDF || busy || selecting) return;
   clearError();
   element<HTMLDivElement>('result').hidden = true;
-  const pdf = currentPDF;
   const options = readOptions();
-  let token = '';
   busy = true;
   updateEstimate();
   try {
-    const target = await PDFExportService.BeginExport(pdf.name, options.mode, options.format, pdf.sizes.length);
-    if (!target.token) return;
-    token = target.token;
     element<HTMLDivElement>('progress').hidden = false;
-    updateProgress(0, options.mode === 'single' ? pdf.sizes.length + 1 : pdf.sizes.length);
-    await convertPDF(pdf, options,
-      (number, base64) => PDFExportService.WriteImage(token, number, base64),
-      updateProgress);
-    const result = await PDFExportService.FinishExport(token);
-    token = '';
-    element<HTMLElement>('resultTitle').textContent = `转换完成 · ${result.count} 张图片`;
-    element<HTMLElement>('resultPath').textContent = result.location;
+    let completed = 0;
+    let lastLocation = '';
+    const failures: string[] = [];
+    for (let index = 0; index < selectedSources.length; index++) {
+      const source = selectedSources[index];
+      let pdf: LoadedPDF | null = index === 0 ? currentPDF : null;
+      let token = '';
+      try {
+        if (!pdf) pdf = await loadPDF(await readSource('pdf-image', index, source));
+        const target = await PDFExportService.BeginExportBesideSource(source.path, options.mode, options.format, pdf.sizes.length);
+        token = target.token;
+        updateProgress(0, options.mode === 'single' ? pdf.sizes.length + 1 : pdf.sizes.length);
+        await convertPDF(pdf, options, (number, base64) => PDFExportService.WriteImage(token, number, base64), updateProgress);
+        const result = await PDFExportService.FinishExport(token);
+        lastLocation = result.location;
+        token = '';
+        completed++;
+      } catch (error) {
+        if (token) await PDFExportService.AbortExport(token);
+        failures.push(`${source.name}：${errorText(error)}`);
+      } finally {
+        if (index > 0 && pdf) await pdf.document.destroy();
+      }
+      element<HTMLElement>('progressText').textContent = `已处理 ${index + 1} / ${selectedSources.length} 个 PDF`;
+    }
+    element<HTMLElement>('resultTitle').textContent = `转换完成 · ${completed} / ${selectedSources.length} 个 PDF`;
+    element<HTMLElement>('resultPath').textContent = selectedSources.length === 1 ? lastLocation : '输出保存在各源 PDF 所在文件夹';
+    element<HTMLButtonElement>('openFolder').textContent = selectedSources.length > 1 ? '打开最近结果' : '打开文件夹';
     element<HTMLDivElement>('result').hidden = false;
+    if (failures.length) showError(`失败 ${failures.length} 个：${failures.join('；')}`);
   } catch (error) {
-    if (token) await PDFExportService.AbortExport(token);
     showError(`转换失败：${errorText(error)}`);
   } finally {
     busy = false;
@@ -151,11 +194,10 @@ async function startConversion(): Promise<void> {
 
 /** Wires the PDF tool controls after the app shell has been rendered. */
 export function setupPdfTool(): void {
-  const input = element<HTMLInputElement>('fileInput');
   const zone = element<HTMLDivElement>('dropzone');
-  zone.addEventListener('click', () => { if (!busy) { input.value = ''; input.click(); } });
+  zone.addEventListener('click', () => void chooseNativePDFs());
   zone.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); zone.click(); } });
-  input.addEventListener('change', () => { if (input.files?.[0]) void chooseFile(input.files[0]); });
+  element<HTMLInputElement>('pdfBatch').addEventListener('change', (event) => { const toggle = event.target as HTMLInputElement; if (busy || selecting) { toggle.checked = !toggle.checked; return; } selectedSources = []; if (currentPDF) { void currentPDF.document.destroy(); currentPDF = null; } element<HTMLDivElement>('loadedState').hidden = true; element<HTMLDivElement>('emptyState').hidden = false; element<HTMLDivElement>('pdfQueue').hidden = true; updateEstimate(); });
   document.querySelectorAll<HTMLInputElement>('input[type="radio"]').forEach((radio) => {
     radio.addEventListener('change', () => { refreshChoices(); clearError(); updateEstimate(); });
   });

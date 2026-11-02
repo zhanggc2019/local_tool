@@ -23,3 +23,10 @@ export function OpenPhotoOutputFolder(): $CancellablePromise<void> {
 export function SavePhoto(size: string, color: string, encoded: string): $CancellablePromise<string> {
     return $Call.ByID(3946605316, size, color, encoded);
 }
+
+/**
+ * SavePhotoBesideSource saves a processed photo beside its original image.
+ */
+export function SavePhotoBesideSource(sourcePath: string, size: string, color: string, encoded: string): $CancellablePromise<string> {
+    return $Call.ByID(3023288963, sourcePath, size, color, encoded);
+}

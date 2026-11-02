@@ -22,7 +22,7 @@ export function ChoosePDFs(multiple: boolean): $CancellablePromise<$models.PDFSo
 }
 
 /**
- * CompressPDF optimizes the selected PDF and returns its actual output size.
+ * CompressPDF optimizes every selected PDF beside its source file.
  */
 export function CompressPDF(): $CancellablePromise<$models.PDFManageResult> {
     return $Call.ByID(1565669278);
@@ -43,7 +43,7 @@ export function OpenPDFOutputFolder(): $CancellablePromise<void> {
 }
 
 /**
- * SplitPDF splits the selected PDF into groups of the requested page count.
+ * SplitPDF splits every selected PDF into a separate folder beside its source.
  */
 export function SplitPDF(span: number): $CancellablePromise<$models.PDFManageResult> {
     return $Call.ByID(863237514, span);

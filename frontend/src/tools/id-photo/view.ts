@@ -1,15 +1,16 @@
 /** Returns the independent ID photo tool view for the desktop shell. */
 export function renderPhotoView(): string {
   return `
-    <div class="page-heading"><h1>证件照制作</h1><p>选择正面人像，调整构图并保存蓝底或红底证件照。</p></div>
+    <div class="page-heading"><h1>证件照制作</h1><p>选择正面人像，调整构图；结果默认保存到原文件夹。</p></div>
     <div class="work-grid photo-grid">
       <section class="source-panel" aria-labelledby="photo-source-title">
         <div class="panel-heading"><h2 id="photo-source-title">人像照片</h2><span class="photo-source-actions"><span id="photoFileName">JPG、PNG 或 WebP · 20 MB 以内</span><button id="photoReplace" type="button" hidden>更换照片</button></span></div>
-        <input id="photoInput" type="file" accept="image/jpeg,image/png,image/webp" hidden />
+        <label class="batch-toggle"><input id="photoBatch" type="checkbox" /> 批量选择照片（同一构图）</label>
         <div class="photo-stage" id="photoStage">
           <div class="empty-state" id="photoEmpty"><span class="photo-icon" aria-hidden="true">▣</span><strong>选择一张正面人像</strong><p>建议头肩完整、光线均匀、背景简单</p><button type="button" class="pick-cta" id="photoPick">选择照片</button></div>
           <div class="photo-editor" id="photoEditor" hidden><canvas id="photoCanvas" aria-label="证件照预览，可拖动调整位置"></canvas><div class="photo-drag-tip">拖动照片调整位置</div></div>
         </div>
+        <div id="photoQueue" class="batch-summary" hidden></div>
         <p class="source-tip">人像抠图在本机完成；复杂头发和背景请检查预览边缘。</p>
       </section>
       <section class="settings-panel photo-settings" aria-labelledby="photo-settings-title">

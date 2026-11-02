@@ -57,7 +57,7 @@ function renderFiles(): void {
   });
   list.hidden = !sources.length;
   el<HTMLDivElement>('manageEmpty').hidden = !!sources.length;
-  const valid = mode === 'merge' ? sources.length >= 2 : sources.length === 1 && (mode !== 'split' || sources[0].pages > 1);
+  const valid = mode === 'merge' ? sources.length >= 2 : sources.length > 0 && (mode !== 'split' || sources.some((source) => source.pages > 1));
   el<HTMLButtonElement>('manageRun').disabled = busy || !valid;
 }
 
@@ -72,11 +72,11 @@ function selectMode(next: Mode): void {
     tab.setAttribute('aria-selected', String(active));
   });
   const labels = { merge: '合并并保存', split: '拆分并保存', compress: '压缩并保存' };
-  const explanations = { merge: '按左侧顺序将所有 PDF 合并为一个文件。', split: '按指定页数拆分为多个 PDF，保存到所选文件夹中的新子文件夹。', compress: '优化 PDF 内部结构并保存为新文件。' };
+  const explanations = { merge: '按左侧顺序合并 PDF，结果保存在首个文件所在目录。', split: '每个 PDF 按指定页数拆分，保存到其原文件夹中的新子文件夹。', compress: '逐个优化 PDF，结果保存在各自的原文件夹。' };
   el<HTMLButtonElement>('manageRun').textContent = labels[mode];
   el<HTMLDivElement>('manageExplain').textContent = explanations[mode];
-  el<HTMLElement>('manageSourceHint').textContent = mode === 'merge' ? '选择至少两个 PDF' : '选择一个 PDF';
-  el<HTMLButtonElement>('managePick').textContent = mode === 'merge' ? '选择多个 PDF' : '选择 PDF 文件';
+  el<HTMLElement>('manageSourceHint').textContent = mode === 'merge' ? '选择至少两个 PDF' : '可选择多个 PDF';
+  el<HTMLButtonElement>('managePick').textContent = '选择多个 PDF';
   el<HTMLElement>('manageSourceTip').textContent = mode === 'merge' ? '合并时可调整文件顺序。' : '源文件不会被修改。';
   el<HTMLDivElement>('manageSplitSettings').hidden = mode !== 'split';
   el<HTMLDivElement>('manageCompressHint').hidden = mode !== 'compress';
@@ -90,7 +90,7 @@ async function pickFiles(): Promise<void> {
   if (busy) return;
   el<HTMLDivElement>('manageError').hidden = true;
   try {
-    const picked = await PDFManageService.ChoosePDFs(mode === 'merge');
+    const picked = await PDFManageService.ChoosePDFs(true);
     if (!picked?.length) return;
     sources = picked;
     order = sources.map((_, index) => index);
@@ -107,9 +107,9 @@ async function pickFiles(): Promise<void> {
 async function run(): Promise<void> {
   if (busy || !sources.length) return;
   const span = Number(el<HTMLInputElement>('manageSpan').value);
-  if (mode === 'split' && (!Number.isInteger(span) || span < 1 || span >= sources[0].pages)) {
+  if (mode === 'split' && (!Number.isInteger(span) || span < 1 || sources.every((source) => span >= source.pages))) {
     const box = el<HTMLDivElement>('manageError');
-    box.textContent = '每份页数必须大于 0 且小于总页数。'; box.hidden = false; return;
+    box.textContent = '每份页数必须大于 0 且小于至少一个 PDF 的总页数。'; box.hidden = false; return;
   }
   busy = true;
   renderFiles();
@@ -125,11 +125,13 @@ async function run(): Promise<void> {
     if (mode === 'merge') title.textContent = `已合并 ${result.count} 个 PDF · ${size(result.bytes)}`;
     if (mode === 'split') title.textContent = `已拆分为 ${result.count} 份 PDF`;
     if (mode === 'compress') {
-      const difference = sources[0].bytes - result.bytes;
-      title.textContent = difference > 0 ? `压缩完成 · 减少 ${size(difference)}` : '优化完成 · 文件体积未减小';
+      const difference = result.inputBytes - result.bytes;
+      title.textContent = difference > 0 ? `已处理 ${result.count} 个 PDF · 减少 ${size(difference)}` : `已处理 ${result.count} 个 PDF · 文件体积未减小`;
     }
-    el<HTMLElement>('manageResultPath').textContent = result.location;
+    el<HTMLElement>('manageResultPath').textContent = sources.length > 1 && mode !== 'merge' ? '结果保存在各源 PDF 所在文件夹' : result.location;
+    el<HTMLButtonElement>('manageOpenFolder').textContent = sources.length > 1 && mode !== 'merge' ? '打开首个结果' : '打开文件夹';
     el<HTMLDivElement>('manageResult').hidden = false;
+    if (result.failed?.length) { const box = el<HTMLDivElement>('manageError'); box.textContent = `未完成 ${result.failed.length} 个：${result.failed.join('；')}`; box.hidden = false; }
   } catch (error) {
     const box = el<HTMLDivElement>('manageError');
     box.textContent = `处理失败：${message(error)}`; box.hidden = false;

@@ -21,9 +21,11 @@ type PDFSource struct {
 
 // PDFManageResult summarizes a completed PDF operation.
 type PDFManageResult struct {
-	Location string `json:"location"`
-	Count    int    `json:"count"`
-	Bytes    int64  `json:"bytes"`
+	Location   string   `json:"location"`
+	Count      int      `json:"count"`
+	Bytes      int64    `json:"bytes"`
+	InputBytes int64    `json:"inputBytes"`
+	Failed     []string `json:"failed"`
 }
 
 // PDFManageService owns selected paths and the latest output directory.
@@ -122,27 +124,6 @@ func (s *PDFManageService) finishOperation(location string) {
 	}
 }
 
-// choosePDFOutput prompts for a destination and prevents replacing an input.
-func choosePDFOutput(filename string, inputs []string) (string, error) {
-	app := application.Get()
-	if app == nil {
-		return "", errors.New("桌面窗口尚未就绪")
-	}
-	path, err := app.Dialog.SaveFile().SetMessage("保存 PDF").SetFilename(filename).AddFilter("PDF 文件", "*.pdf").PromptForSingleSelection()
-	if err != nil || path == "" {
-		return path, err
-	}
-	if !strings.EqualFold(filepath.Ext(path), ".pdf") {
-		path += ".pdf"
-	}
-	for _, input := range inputs {
-		if strings.EqualFold(filepath.Clean(input), filepath.Clean(path)) {
-			return "", errors.New("输出文件不能覆盖源文件")
-		}
-	}
-	return path, nil
-}
-
 // MergePDFs saves the selected PDFs in the requested order.
 func (s *PDFManageService) MergePDFs(order []int) (PDFManageResult, error) {
 	inputs, err := s.beginOperation()
@@ -163,8 +144,8 @@ func (s *PDFManageService) MergePDFs(order []int) (PDFManageResult, error) {
 		seen[index] = true
 		ordered[i] = inputs[index]
 	}
-	path, err := choosePDFOutput("合并.pdf", inputs)
-	if err != nil || path == "" {
+	path, err := sameSourceOutput(ordered[0], "_合并", ".pdf")
+	if err != nil {
 		return PDFManageResult{}, err
 	}
 	if err = api.MergeCreateFile(ordered, path, false, nil); err != nil {
@@ -178,7 +159,7 @@ func (s *PDFManageService) MergePDFs(order []int) (PDFManageResult, error) {
 	return PDFManageResult{Location: path, Count: len(inputs), Bytes: info.Size()}, nil
 }
 
-// SplitPDF splits the selected PDF into groups of the requested page count.
+// SplitPDF splits every selected PDF into a separate folder beside its source.
 func (s *PDFManageService) SplitPDF(span int) (PDFManageResult, error) {
 	inputs, err := s.beginOperation()
 	if err != nil {
@@ -186,47 +167,50 @@ func (s *PDFManageService) SplitPDF(span int) (PDFManageResult, error) {
 	}
 	output := ""
 	defer func() { s.finishOperation(output) }()
-	if len(inputs) != 1 {
-		return PDFManageResult{}, errors.New("拆分需要选择一个 PDF")
-	}
-	pages, err := api.PageCountFile(inputs[0])
-	if err != nil {
-		return PDFManageResult{}, err
-	}
-	if span < 1 || span >= pages {
-		return PDFManageResult{}, errors.New("每份页数应小于 PDF 总页数")
-	}
-	app := application.Get()
-	if app == nil {
-		return PDFManageResult{}, errors.New("桌面窗口尚未就绪")
-	}
-	parent, err := app.Dialog.OpenFile().SetTitle("选择拆分文件的保存文件夹").CanChooseDirectories(true).CanChooseFiles(false).PromptForSingleSelection()
-	if err != nil || parent == "" {
-		return PDFManageResult{}, err
-	}
-	stem := strings.TrimSuffix(filepath.Base(inputs[0]), filepath.Ext(inputs[0]))
-	dir, err := os.MkdirTemp(parent, stem+"_拆分_")
-	if err != nil {
-		return PDFManageResult{}, err
-	}
-	if err = api.SplitFile(inputs[0], dir, span, nil); err != nil {
-		return PDFManageResult{}, fmt.Errorf("拆分失败，未完成的文件保留在 %s：%w", dir, err)
-	}
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return PDFManageResult{}, err
+	if span < 1 {
+		return PDFManageResult{}, errors.New("每份页数至少为 1")
 	}
 	var bytes int64
-	for _, entry := range entries {
-		if info, statErr := entry.Info(); statErr == nil {
-			bytes += info.Size()
+	count := 0
+	var failed []string
+	for _, input := range inputs {
+		pages, err := api.PageCountFile(input)
+		if err != nil || span >= pages {
+			failed = append(failed, filepath.Base(input)+"：无法读取或页数不足")
+			continue
+		}
+		stem := strings.TrimSuffix(filepath.Base(input), filepath.Ext(input))
+		dir, err := os.MkdirTemp(filepath.Dir(input), stem+"_拆分_")
+		if err != nil {
+			failed = append(failed, filepath.Base(input)+"："+err.Error())
+			continue
+		}
+		if err = api.SplitFile(input, dir, span, nil); err != nil {
+			failed = append(failed, filepath.Base(input)+"：拆分失败，未完成文件位于 "+dir)
+			continue
+		}
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			failed = append(failed, filepath.Base(input)+"："+err.Error())
+			continue
+		}
+		count += len(entries)
+		for _, entry := range entries {
+			if info, statErr := entry.Info(); statErr == nil {
+				bytes += info.Size()
+			}
+		}
+		if output == "" {
+			output = dir
 		}
 	}
-	output = dir
-	return PDFManageResult{Location: dir, Count: len(entries), Bytes: bytes}, nil
+	if count == 0 {
+		return PDFManageResult{}, errors.New(strings.Join(failed, "；"))
+	}
+	return PDFManageResult{Location: output, Count: count, Bytes: bytes, Failed: failed}, nil
 }
 
-// CompressPDF optimizes the selected PDF and returns its actual output size.
+// CompressPDF optimizes every selected PDF beside its source file.
 func (s *PDFManageService) CompressPDF() (PDFManageResult, error) {
 	inputs, err := s.beginOperation()
 	if err != nil {
@@ -234,23 +218,36 @@ func (s *PDFManageService) CompressPDF() (PDFManageResult, error) {
 	}
 	output := ""
 	defer func() { s.finishOperation(output) }()
-	if len(inputs) != 1 {
-		return PDFManageResult{}, errors.New("压缩需要选择一个 PDF")
+	var bytes int64
+	var inputBytes int64
+	var failed []string
+	for _, input := range inputs {
+		path, err := sameSourceOutput(input, "_压缩", ".pdf")
+		if err != nil {
+			failed = append(failed, filepath.Base(input)+"："+err.Error())
+			continue
+		}
+		if err = api.OptimizeFile(input, path, nil); err != nil {
+			failed = append(failed, filepath.Base(input)+"："+err.Error())
+			continue
+		}
+		info, err := os.Stat(path)
+		if err != nil {
+			failed = append(failed, filepath.Base(input)+"："+err.Error())
+			continue
+		}
+		bytes += info.Size()
+		if sourceInfo, statErr := os.Stat(input); statErr == nil {
+			inputBytes += sourceInfo.Size()
+		}
+		if output == "" {
+			output = path
+		}
 	}
-	stem := strings.TrimSuffix(filepath.Base(inputs[0]), filepath.Ext(inputs[0]))
-	path, err := choosePDFOutput(stem+"_压缩.pdf", inputs)
-	if err != nil || path == "" {
-		return PDFManageResult{}, err
+	if output == "" {
+		return PDFManageResult{}, errors.New(strings.Join(failed, "；"))
 	}
-	if err = api.OptimizeFile(inputs[0], path, nil); err != nil {
-		return PDFManageResult{}, err
-	}
-	info, err := os.Stat(path)
-	if err != nil {
-		return PDFManageResult{}, err
-	}
-	output = path
-	return PDFManageResult{Location: path, Count: 1, Bytes: info.Size()}, nil
+	return PDFManageResult{Location: output, Count: len(inputs) - len(failed), Bytes: bytes, InputBytes: inputBytes, Failed: failed}, nil
 }
 
 // OpenPDFOutputFolder reveals the latest PDF result in the file manager.

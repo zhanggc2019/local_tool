@@ -1,8 +1,12 @@
 import { PhotoService } from '../../../bindings/example.com/pdf-desktop';
 import { cutOutPerson, encodePhoto, renderPhoto, type PhotoColor, type PhotoSize } from './processor';
+import { chooseSources, readSource } from '../source-file';
+import type { LocalSource } from '../../../bindings/example.com/pdf-desktop';
 
 let personCanvas: HTMLCanvasElement | null = null;
+let selectedSources: LocalSource[] = [];
 let busy = false;
+let selecting = false;
 let panX = 0;
 let panY = 0;
 let dragStart: { x: number; y: number; panX: number; panY: number } | null = null;
@@ -66,8 +70,8 @@ function updatePhotoPreview(): void {
 }
 
 /** Loads one local image and creates its transparent person layer. */
-async function choosePhoto(file: File): Promise<void> {
-  if (busy) return;
+async function choosePhoto(file: File): Promise<boolean> {
+  if (busy) return false;
   busy = true;
   clearPhotoError();
   photoElement<HTMLDivElement>('photoResult').hidden = true;
@@ -91,34 +95,76 @@ async function choosePhoto(file: File): Promise<void> {
     photoElement<HTMLDivElement>('photoEmpty').hidden = true;
     photoElement<HTMLDivElement>('photoEditor').hidden = false;
     updatePhotoPreview();
+    return true;
   } catch (error) {
     showPhotoError(`处理照片失败：${photoErrorText(error)}`);
+    return false;
   } finally {
     busy = false;
     setPhotoStatus('');
-    photoElement<HTMLButtonElement>('photoSave').disabled = !personCanvas;
+    photoElement<HTMLButtonElement>('photoSave').disabled = !personCanvas || !selectedSources.length;
   }
+}
+
+/** Selects native image files and previews the first portrait. */
+async function chooseNativePhotos(): Promise<void> {
+  if (busy || selecting) return;
+  selecting = true;
+  try {
+    const picked = await chooseSources('photo', photoElement<HTMLInputElement>('photoBatch').checked);
+    if (!picked?.length) return;
+    selectedSources = [];
+    photoElement<HTMLDivElement>('photoQueue').hidden = true;
+    photoElement<HTMLButtonElement>('photoSave').disabled = true;
+    if (!await choosePhoto(await readSource('photo', 0, picked[0]))) return;
+    selectedSources = picked;
+    photoElement<HTMLButtonElement>('photoSave').disabled = false;
+    const queue = photoElement<HTMLDivElement>('photoQueue');
+    queue.textContent = picked.length > 1 ? `已选择 ${picked.length} 张照片 · 使用相同尺寸、背景和构图，逐张保存到原文件夹` : '输出默认保存在原照片所在文件夹';
+    queue.hidden = false;
+  } catch (error) { showPhotoError(`读取照片失败：${photoErrorText(error)}`); }
+  finally { selecting = false; }
 }
 
 /** Saves the exact preview pixels as a validated 300 DPI JPEG. */
 async function savePhoto(): Promise<void> {
-  if (!personCanvas || busy) return;
+  if (!personCanvas || busy || selecting || !selectedSources.length) return;
   busy = true;
   clearPhotoError();
   photoElement<HTMLButtonElement>('photoSave').disabled = true;
   try {
-    updatePhotoPreview();
-    const encoded = encodePhoto(photoElement<HTMLCanvasElement>('photoCanvas'));
-    const path = await PhotoService.SavePhoto(selected('photoSize'), selected('photoColor'), encoded);
-    if (path) {
-      photoElement<HTMLElement>('photoResultPath').textContent = path;
-      photoElement<HTMLDivElement>('photoResult').hidden = false;
+    const size = selected('photoSize') as PhotoSize;
+    const color = selected('photoColor') as PhotoColor;
+    const zoom = Number(photoElement<HTMLInputElement>('photoZoom').value) / 100;
+    const offsetX = panX;
+    const offsetY = panY;
+    const failures: string[] = [];
+    let completed = 0;
+    let lastPath = '';
+    for (let index = 0; index < selectedSources.length; index++) {
+      const source = selectedSources[index];
+      let cutout: HTMLCanvasElement | null = null;
+      try {
+        cutout = index === 0 ? personCanvas : await cutOutPerson(await readSource('photo', index, source));
+        const output = document.createElement('canvas');
+        renderPhoto(cutout, output, size, color, zoom, offsetX, offsetY);
+        lastPath = await PhotoService.SavePhotoBesideSource(source.path, size, color, encodePhoto(output));
+        output.width = 0; output.height = 0;
+        completed++;
+      } catch (error) { failures.push(`${source.name}：${photoErrorText(error)}`); }
+      finally { if (index > 0 && cutout) { cutout.width = 0; cutout.height = 0; } }
+      setPhotoStatus(`已处理 ${index + 1} / ${selectedSources.length} 张照片`);
     }
+    photoElement<HTMLElement>('photoResultPath').textContent = selectedSources.length === 1 ? lastPath : '结果位于各原照片所在文件夹';
+    photoElement<HTMLButtonElement>('photoOpenFolder').textContent = selectedSources.length > 1 ? '打开最近结果' : '打开文件夹';
+    photoElement<HTMLDivElement>('photoResult').hidden = completed === 0;
+    photoElement<HTMLElement>('photoResultPath').previousElementSibling!.textContent = `已保存 ${completed} / ${selectedSources.length} 张证件照`;
+    if (failures.length) showPhotoError(`失败 ${failures.length} 张：${failures.join('；')}`);
   } catch (error) {
     showPhotoError(`保存失败：${photoErrorText(error)}`);
   } finally {
     busy = false;
-    photoElement<HTMLButtonElement>('photoSave').disabled = !personCanvas;
+    photoElement<HTMLButtonElement>('photoSave').disabled = !personCanvas || !selectedSources.length;
   }
 }
 
@@ -146,10 +192,9 @@ function stopPhotoDrag(): void {
 
 /** Attaches file, crop, color, size, and export controls to the photo tool. */
 export function setupPhotoTool(): void {
-  const input = photoElement<HTMLInputElement>('photoInput');
-  photoElement<HTMLButtonElement>('photoPick').addEventListener('click', () => { if (!busy) { input.value = ''; input.click(); } });
-  photoElement<HTMLButtonElement>('photoReplace').addEventListener('click', () => { if (!busy) { input.value = ''; input.click(); } });
-  input.addEventListener('change', () => { if (input.files?.[0]) void choosePhoto(input.files[0]); });
+  photoElement<HTMLButtonElement>('photoPick').addEventListener('click', () => void chooseNativePhotos());
+  photoElement<HTMLButtonElement>('photoReplace').addEventListener('click', () => void chooseNativePhotos());
+  photoElement<HTMLInputElement>('photoBatch').addEventListener('change', (event) => { const toggle = event.target as HTMLInputElement; if (busy || selecting) { toggle.checked = !toggle.checked; return; } selectedSources = []; if (personCanvas) { personCanvas.width = 0; personCanvas.height = 0; } personCanvas = null; photoElement<HTMLDivElement>('photoEditor').hidden = true; photoElement<HTMLDivElement>('photoEmpty').hidden = false; photoElement<HTMLDivElement>('photoQueue').hidden = true; photoElement<HTMLButtonElement>('photoSave').disabled = true; });
   document.querySelectorAll<HTMLInputElement>('input[name="photoSize"],input[name="photoColor"]').forEach((radio) => {
     radio.addEventListener('change', () => { refreshPhotoChoices(); clearPhotoError(); updatePhotoPreview(); });
   });

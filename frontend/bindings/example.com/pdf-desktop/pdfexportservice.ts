@@ -29,6 +29,13 @@ export function BeginExport(filename: string, mode: string, imageFormat: string,
 }
 
 /**
+ * BeginExportBesideSource saves converted images in the input PDF's directory.
+ */
+export function BeginExportBesideSource(sourcePath: string, mode: string, imageFormat: string, pageCount: number): $CancellablePromise<$models.ExportTarget> {
+    return $Call.ByID(3467546319, sourcePath, mode, imageFormat, pageCount);
+}
+
+/**
  * FinishExport closes a fully written session and remembers its output folder.
  */
 export function FinishExport(token: string): $CancellablePromise<$models.ExportResult> {

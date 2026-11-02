@@ -1,7 +1,7 @@
 /** Returns the PDF merge, split, and compression workspace. */
 export function renderPDFManageView(): string {
   return `
-    <div class="page-heading"><h1>PDF 合并/拆分/压缩</h1><p>选择操作，处理本机 PDF 并保存结果。</p></div>
+    <div class="page-heading"><h1>PDF 合并/拆分/压缩</h1><p>选择多个 PDF 批量处理，结果默认保存在原文件夹。</p></div>
     <div class="manage-tabs" role="tablist" aria-label="PDF 操作">
       <button class="manage-tab active" type="button" data-mode="merge" role="tab" aria-selected="true">合并 PDF</button>
       <button class="manage-tab" type="button" data-mode="split" role="tab" aria-selected="false">拆分 PDF</button>
@@ -14,7 +14,7 @@ export function renderPDFManageView(): string {
           <div class="empty-state" id="manageEmpty"><span class="pdf-icon" aria-hidden="true">PDF</span><strong>选择 PDF 文件</strong><p>文件只在本机处理</p></div>
           <ol class="manage-file-list" id="manageFiles" hidden></ol>
         </div>
-        <button class="manage-pick" id="managePick" type="button">选择 PDF 文件</button>
+        <button class="manage-pick" id="managePick" type="button">选择多个 PDF</button>
         <p class="source-tip" id="manageSourceTip">合并时可调整文件顺序。</p>
       </section>
       <section class="settings-panel manage-settings" aria-labelledby="manage-settings-title">
