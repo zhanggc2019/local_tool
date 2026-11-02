@@ -21,6 +21,8 @@ func main() {
 			application.NewService(NewPDFExportService()),
 			application.NewService(NewPDFManageService()),
 			application.NewService(NewPhotoService()),
+			application.NewService(NewWatermarkService()),
+			application.NewService(NewQRCodeService()),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

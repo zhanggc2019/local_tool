@@ -4,10 +4,14 @@
 import * as PDFExportService from "./pdfexportservice.js";
 import * as PDFManageService from "./pdfmanageservice.js";
 import * as PhotoService from "./photoservice.js";
+import * as QRCodeService from "./qrcodeservice.js";
+import * as WatermarkService from "./watermarkservice.js";
 export {
     PDFExportService,
     PDFManageService,
-    PhotoService
+    PhotoService,
+    QRCodeService,
+    WatermarkService
 };
 
 export type {

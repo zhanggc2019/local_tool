@@ -1,6 +1,6 @@
 # 本地工具箱
 
-基于 Go、Wails 3 和 TypeScript 的 Windows 本地文件工具。当前提供 **PDF 转图片**、**PDF 合并/拆分/压缩**和**证件照制作**；各工具有独立的界面、处理逻辑和本机文件服务，便于继续扩展。
+基于 Go、Wails 3 和 TypeScript 的 Windows 本地文件工具。当前提供 **PDF 转图片**、**PDF 合并/拆分/压缩**、**证件照制作**、**图片去水印**和**网址二维码**；各工具有独立的界面、处理逻辑和本机文件服务，便于继续扩展。
 
 ## PDF 转图片
 
@@ -27,6 +27,19 @@
 - 人像模型和运行所需的 WASM 文件随应用打包，处理照片不需要网络。复杂头发、透明物件或与人像颜色接近的背景可能影响抠图边缘，请保存前检查预览。
 
 不同证件和受理机构可能要求其他尺寸、像素、底色或头部占比；提交前请按具体要求核对。
+
+## 图片去水印
+
+- 导入 20 MB 以内的 JPG、PNG 或 WebP 图片，最多 1600 万像素。
+- 调整画笔，在水印上涂选；可撤销或清空涂选，并按住按钮查看原图。
+- 点击“修复选区”后，可继续处理其他区域，最后保存为 PNG 或 JPG。
+- 修复在本机的后台线程完成，不需要账号、密钥或外部服务。它适合小块水印；复杂纹理、大面积遮挡可能留下痕迹。
+
+## 网址二维码
+
+- 输入 HTTP 或 HTTPS 网址；省略协议时自动补全 HTTPS。
+- 选择 512、1024 或 2048 像素，生成带标准留白的二维码并保存为 PNG。
+- 二维码在本机生成，不会请求输入的网址；分享前建议用手机扫码核对。
 
 ## 运行与构建（Windows PowerShell）
 
@@ -79,4 +92,5 @@ PDF 工具由 `frontend/src/tools/pdf-image/`（渲染、尺寸规划、界面�
 - Wails 3：MIT，许可证见 `licenses/wails.LICENSE`。
 - PDF.js：Apache-2.0，许可证见 `licenses/pdfjs-dist.LICENSE`。
 - pdfcpu：Apache-2.0，用于 PDF 合并、拆分和优化，许可证见 `licenses/pdfcpu.LICENSE`。
+- node-qrcode：MIT，用于本机生成二维码，许可证见 `licenses/node-qrcode.LICENSE`。
 - MediaPipe Tasks Vision 及随应用分发的人像分割模型：Apache-2.0，许可证见 `licenses/mediapipe.LICENSE`。

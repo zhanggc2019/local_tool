@@ -11,4 +11,6 @@ export const tools: ToolDefinition[] = [
   { id: 'pdf-image', name: 'PDF 转图片', detail: '文档处理', mark: '▤', available: true },
   { id: 'pdf-manage', name: 'PDF 处理', detail: '合并、拆分与压缩', mark: '▦', available: true },
   { id: 'id-photo', name: '证件照制作', detail: '图片处理', mark: '◉', available: true },
+  { id: 'watermark', name: '图片去水印', detail: '本地涂选修复', mark: '▧', available: true },
+  { id: 'qr-code', name: '网址二维码', detail: '输入网址生成 PNG', mark: '▦', available: true },
 ];

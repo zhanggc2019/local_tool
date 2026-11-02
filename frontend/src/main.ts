@@ -3,6 +3,10 @@ import { renderPDFManageView } from './tools/pdf-manage/view';
 import { setupPDFManageTool } from './tools/pdf-manage/ui';
 import { renderPhotoView } from './tools/id-photo/view';
 import { setupPhotoTool } from './tools/id-photo/ui';
+import { renderWatermarkView } from './tools/watermark/view';
+import { setupWatermarkTool } from './tools/watermark/ui';
+import { renderQRCodeView } from './tools/qr-code/view';
+import { setupQRCodeTool } from './tools/qr-code/ui';
 import { tools } from './tools';
 
 /** Builds a compact desktop shell from the registered tools. */
@@ -57,6 +61,8 @@ function renderShell(): void {
         </div>
         <div class="content" id="pdfManageView" hidden>${renderPDFManageView()}</div>
         <div class="content" id="photoView" hidden>${renderPhotoView()}</div>
+        <div class="content" id="watermarkView" hidden>${renderWatermarkView()}</div>
+        <div class="content" id="qrCodeView" hidden>${renderQRCodeView()}</div>
       </main>
     </div>`;
 }
@@ -76,6 +82,8 @@ function setupNavigation(): void {
       document.getElementById('pdfView')!.hidden = id !== 'pdf-image';
       document.getElementById('pdfManageView')!.hidden = id !== 'pdf-manage';
       document.getElementById('photoView')!.hidden = id !== 'id-photo';
+      document.getElementById('watermarkView')!.hidden = id !== 'watermark';
+      document.getElementById('qrCodeView')!.hidden = id !== 'qr-code';
       document.getElementById('toolTitle')!.textContent = tool.name;
     });
   });
@@ -85,4 +93,6 @@ renderShell();
 setupPdfTool();
 setupPDFManageTool();
 setupPhotoTool();
+setupWatermarkTool();
+setupQRCodeTool();
 setupNavigation();
