@@ -31,7 +31,9 @@ func netstatOwners(port int) (map[int][]PortEndpoint, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
-	output, err := exec.CommandContext(ctx, filepath.Join(directory, "netstat.exe"), "-a", "-n", "-o", "-q").Output()
+	command := exec.CommandContext(ctx, filepath.Join(directory, "netstat.exe"), "-a", "-n", "-o", "-q")
+	command.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: windows.CREATE_NO_WINDOW}
+	output, err := command.Output()
 	if err != nil {
 		if ctx.Err() != nil {
 			return nil, errors.New("查询端口超时")
