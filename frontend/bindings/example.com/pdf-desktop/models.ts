@@ -45,3 +45,25 @@ export interface PDFSource {
     "pages": number;
     "bytes": number;
 }
+
+/**
+ * PortEndpoint describes one local TCP or UDP binding.
+ */
+export interface PortEndpoint {
+    "protocol": string;
+    "local": string;
+    "state": string;
+}
+
+/**
+ * PortOwner groups the bindings held by one Windows process.
+ */
+export interface PortOwner {
+    "pid": number;
+    "name": string;
+    "path": string;
+    "started": string;
+    "canTerminate": boolean;
+    "reason": string;
+    "endpoints": PortEndpoint[] | null;
+}

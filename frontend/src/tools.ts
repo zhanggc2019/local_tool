@@ -13,4 +13,5 @@ export const tools: ToolDefinition[] = [
   { id: 'id-photo', name: '证件照制作', detail: '图片处理', mark: '◉', available: true },
   { id: 'watermark', name: '图片去水印', detail: '本地涂选修复', mark: '▧', available: true },
   { id: 'qr-code', name: '网址二维码', detail: '输入网址生成 PNG', mark: '▦', available: true },
+  { id: 'port-check', name: '端口占用', detail: '查询与结束占用进程 · Windows', mark: '⌗', available: true },
 ];

@@ -24,6 +24,7 @@ func main() {
 			application.NewService(NewPhotoService()),
 			application.NewService(NewWatermarkService()),
 			application.NewService(NewQRCodeService()),
+			application.NewService(NewPortService()),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

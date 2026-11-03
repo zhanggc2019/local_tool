@@ -7,6 +7,8 @@ import { renderWatermarkView } from './tools/watermark/view';
 import { setupWatermarkTool } from './tools/watermark/ui';
 import { renderQRCodeView } from './tools/qr-code/view';
 import { setupQRCodeTool } from './tools/qr-code/ui';
+import { renderPortCheckView } from './tools/port-check/view';
+import { setupPortCheckTool } from './tools/port-check/ui';
 import { tools } from './tools';
 
 /** Builds a compact desktop shell from the registered tools. */
@@ -64,6 +66,7 @@ function renderShell(): void {
         <div class="content" id="photoView" hidden>${renderPhotoView()}</div>
         <div class="content" id="watermarkView" hidden>${renderWatermarkView()}</div>
         <div class="content" id="qrCodeView" hidden>${renderQRCodeView()}</div>
+        <div class="content" id="portCheckView" hidden>${renderPortCheckView()}</div>
       </main>
     </div>`;
 }
@@ -85,6 +88,7 @@ function setupNavigation(): void {
       document.getElementById('photoView')!.hidden = id !== 'id-photo';
       document.getElementById('watermarkView')!.hidden = id !== 'watermark';
       document.getElementById('qrCodeView')!.hidden = id !== 'qr-code';
+      document.getElementById('portCheckView')!.hidden = id !== 'port-check';
       document.getElementById('toolTitle')!.textContent = tool.name;
     });
   });
@@ -96,4 +100,5 @@ setupPDFManageTool();
 setupPhotoTool();
 setupWatermarkTool();
 setupQRCodeTool();
+setupPortCheckTool();
 setupNavigation();
