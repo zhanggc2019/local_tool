@@ -1,6 +1,6 @@
 # 本地工具箱
 
-基于 Go、Wails 3 和 TypeScript 的 Windows 本地工具箱。当前提供 **PDF 转图片**、**PDF 合并/拆分/压缩**、**证件照制作**、**图片去水印**、**网址二维码**和**端口占用查询**；各工具有独立的界面、处理逻辑和本机服务，便于继续扩展。
+基于 Go、Wails 3 和 TypeScript 的 Windows 本地工具箱。当前提供 **PDF 转图片**、**PDF 合并/拆分/压缩**、**证件照制作**、**图片去水印**、**网址二维码**、**端口占用查询**、**音频降噪**和**视频转音频**；各工具有独立的界面、处理逻辑和本机服务，便于继续扩展。
 
 ## PDF 转图片
 
@@ -49,6 +49,20 @@
 - 输入 1–65535 的本地端口号，查询 TCP/UDP 占用进程、PID、程序路径和本地连接。
 - 可直接结束占用进程。操作前会再次核对端口、PID 和进程启动标识；系统关键进程与工具箱自身不可结束。
 - 结束进程会立即关闭程序，未保存的数据可能丢失；权限不足时会提示以管理员身份运行。
+
+## 音频降噪
+
+- 选择 40 MB 以内的 WAV、MP3 或 M4A 人声录音，最长 10 分钟。音频由本机 WebView 解码并转换为 48 kHz，格式能否解码取决于 WebView2 的编解码器支持。
+- 使用随应用打包的 DeepFilterNet3 CPU 模型离线降噪；强度可在 0–100 之间调整，也可选择安静室内、办公室、户外街道、强风噪声的建议值。强度映射到模型的衰减限制，高于等于 85 时开启后置滤波。建议值并不保证特定录音的效果，请试听后调整。
+- 提供原音与降噪结果播放器，切换试听时会尽量保持播放位置；分别显示格式、采样率、时长、声道和文件大小。输出可选 48 kHz WAV（默认）或 192 kbps MP3，结果保存在原音频所在文件夹，源文件不修改。
+- 主要面向单人讲话录音。对音乐、混响、其他人声和极重噪声不保证有效，建议试听后选择合适强度。
+
+## 视频转音频
+
+- 选择 MP4、MOV、MKV、AVI、WebM、M4V 或 WMV 视频；勾选批量模式可一次选择最多 50 个视频，每个文件上限为 4 GB。
+- 提取视频的首条音轨，默认输出 192 kbps MP3，也可输出 48 kHz、16 位 PCM WAV。结果默认保存在各源视频所在文件夹，源文件不会被修改。
+- 批量任务逐个处理，一个视频没有音轨或处理失败时会显示原因，其余视频继续提取。
+- 使用随应用打包的 Windows FFmpeg LGPL 版本；首次使用会将转换程序解压到本机用户缓存，后续提取无需网络，也无需另行安装 FFmpeg。
 
 ## 运行与构建（Windows PowerShell）
 
@@ -103,3 +117,6 @@ PDF 工具由 `frontend/src/tools/pdf-image/`（渲染、尺寸规划、界面�
 - pdfcpu：Apache-2.0，用于 PDF 合并、拆分和优化，许可证见 `licenses/pdfcpu.LICENSE`。
 - node-qrcode：MIT，用于本机生成二维码，许可证见 `licenses/node-qrcode.LICENSE`。
 - MediaPipe Tasks Vision 及随应用分发的人像分割模型：Apache-2.0，许可证见 `licenses/mediapipe.LICENSE`。
+- DeepFilterNet3 及官方 Windows CPU 推理程序：MIT/Apache-2.0 双许可证，按 MIT 条款分发，许可证见 `licenses/deepfilternet.LICENSE`。模型及程序来自 [Rikorose/DeepFilterNet](https://github.com/Rikorose/DeepFilterNet)，版本 v0.5.6。
+- MP3 编码使用 [@breezystack/lamejs](https://github.com/shijinyu/lamejs) 1.2.7，LGPL-3.0，许可证见 `licenses/lamejs.LICENSE`。编码器在应用的本地 WebView 中运行。
+- 视频提取使用 [FFmpeg](https://ffmpeg.org/) 8.1 的 Windows LGPL 构建，来源为 [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds)，许可证见 `licenses/ffmpeg.LICENSE`；可替换的 DLL 与 `LICENSE.txt` 一起解压到用户缓存。

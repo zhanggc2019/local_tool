@@ -9,6 +9,10 @@ import { renderQRCodeView } from './tools/qr-code/view';
 import { setupQRCodeTool } from './tools/qr-code/ui';
 import { renderPortCheckView } from './tools/port-check/view';
 import { setupPortCheckTool } from './tools/port-check/ui';
+import { renderAudioDenoiseView } from './tools/audio-denoise/view';
+import { setupAudioDenoiseTool } from './tools/audio-denoise/ui';
+import { renderVideoAudioView } from './tools/video-audio/view';
+import { setupVideoAudioTool } from './tools/video-audio/ui';
 import { tools } from './tools';
 
 /** Builds a compact desktop shell from the registered tools. */
@@ -67,6 +71,8 @@ function renderShell(): void {
         <div class="content" id="watermarkView" hidden>${renderWatermarkView()}</div>
         <div class="content" id="qrCodeView" hidden>${renderQRCodeView()}</div>
         <div class="content" id="portCheckView" hidden>${renderPortCheckView()}</div>
+        <div class="content" id="audioDenoiseView" hidden>${renderAudioDenoiseView()}</div>
+        <div class="content" id="videoAudioView" hidden>${renderVideoAudioView()}</div>
       </main>
     </div>`;
 }
@@ -89,6 +95,9 @@ function setupNavigation(): void {
       document.getElementById('watermarkView')!.hidden = id !== 'watermark';
       document.getElementById('qrCodeView')!.hidden = id !== 'qr-code';
       document.getElementById('portCheckView')!.hidden = id !== 'port-check';
+      document.getElementById('audioDenoiseView')!.hidden = id !== 'audio-denoise';
+      document.getElementById('videoAudioView')!.hidden = id !== 'video-audio';
+      if (id !== 'audio-denoise') document.querySelectorAll<HTMLAudioElement>('#audioDenoiseView audio').forEach((player) => player.pause());
       document.getElementById('toolTitle')!.textContent = tool.name;
     });
   });
@@ -101,4 +110,6 @@ setupPhotoTool();
 setupWatermarkTool();
 setupQRCodeTool();
 setupPortCheckTool();
+setupAudioDenoiseTool();
+setupVideoAudioTool();
 setupNavigation();
