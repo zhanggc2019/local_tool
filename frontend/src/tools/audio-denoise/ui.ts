@@ -1,4 +1,4 @@
-import { AudioDenoiseService, type LocalSource, type AudioResult } from '../../../bindings/example.com/pdf-desktop';
+import { AudioDenoiseService, type LocalSource, type AudioResult } from '../../../bindings/example.com/pdf-desktop/internal/app';
 import { sourceSampleRate, type AudioStats } from './metadata';
 
 const PCM_CHUNK = 512 * 1024;

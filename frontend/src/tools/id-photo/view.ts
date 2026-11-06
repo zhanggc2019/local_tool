@@ -22,6 +22,7 @@ export function renderPhotoView(): string {
         <div class="setting-block"><div class="setting-title"><strong>背景颜色</strong></div><div class="photo-color-list">
           <label class="photo-color-choice selected"><input type="radio" name="photoColor" value="blue" checked/><i class="swatch blue"></i><span>蓝底</span></label>
           <label class="photo-color-choice"><input type="radio" name="photoColor" value="red"/><i class="swatch red"></i><span>红底</span></label>
+          <label class="photo-color-choice"><input type="radio" name="photoColor" value="white"/><i class="swatch white"></i><span>白底</span></label>
         </div></div>
         <div class="setting-block"><div class="setting-title"><strong>缩放</strong><span id="photoZoomValue">100%</span></div><input class="photo-zoom" id="photoZoom" type="range" min="100" max="400" step="5" value="100" disabled aria-label="证件照缩放" /></div>
         <div class="photo-hint">照片会按所选比例裁切；拖动预览可移动人像。</div>

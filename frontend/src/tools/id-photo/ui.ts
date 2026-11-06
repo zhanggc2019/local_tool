@@ -1,7 +1,7 @@
-import { PhotoService } from '../../../bindings/example.com/pdf-desktop';
-import { cutOutPerson, encodePhoto, renderPhoto, type PhotoColor, type PhotoSize } from './processor';
+import { PhotoService } from '../../../bindings/example.com/pdf-desktop/internal/app';
+import { cutOutPerson, encodePhoto, encodePhotoPNG, renderPhoto, type PhotoColor, type PhotoSize } from './processor';
 import { chooseSources, readSource } from '../source-file';
-import type { LocalSource } from '../../../bindings/example.com/pdf-desktop';
+import type { LocalSource } from '../../../bindings/example.com/pdf-desktop/internal/app';
 
 let personCanvas: HTMLCanvasElement | null = null;
 let selectedSources: LocalSource[] = [];
@@ -126,7 +126,7 @@ async function chooseNativePhotos(): Promise<void> {
   finally { selecting = false; }
 }
 
-/** Saves the exact preview pixels as a validated 300 DPI JPEG. */
+/** Saves the exact preview pixels as validated 300 DPI JPG and PNG files. */
 async function savePhoto(): Promise<void> {
   if (!personCanvas || busy || selecting || !selectedSources.length) return;
   busy = true;
@@ -148,7 +148,8 @@ async function savePhoto(): Promise<void> {
         cutout = index === 0 ? personCanvas : await cutOutPerson(await readSource('photo', index, source));
         const output = document.createElement('canvas');
         renderPhoto(cutout, output, size, color, zoom, offsetX, offsetY);
-        lastPath = await PhotoService.SavePhotoBesideSource(source.path, size, color, encodePhoto(output));
+        const result = await PhotoService.SavePhotoBesideSource(source.path, size, color, encodePhoto(output), encodePhotoPNG(output));
+        lastPath = result.jpg;
         output.width = 0; output.height = 0;
         completed++;
       } catch (error) { failures.push(`${source.name}：${photoErrorText(error)}`); }
@@ -158,7 +159,7 @@ async function savePhoto(): Promise<void> {
     photoElement<HTMLElement>('photoResultPath').textContent = selectedSources.length === 1 ? lastPath : '结果位于各原照片所在文件夹';
     photoElement<HTMLButtonElement>('photoOpenFolder').textContent = selectedSources.length > 1 ? '打开最近结果' : '打开文件夹';
     photoElement<HTMLDivElement>('photoResult').hidden = completed === 0;
-    photoElement<HTMLElement>('photoResultPath').previousElementSibling!.textContent = `已保存 ${completed} / ${selectedSources.length} 张证件照`;
+    photoElement<HTMLElement>('photoResultPath').previousElementSibling!.textContent = `已保存 ${completed} / ${selectedSources.length} 张证件照（JPG + PNG）`;
     if (failures.length) showPhotoError(`失败 ${failures.length} 张：${failures.join('；')}`);
   } catch (error) {
     showPhotoError(`保存失败：${photoErrorText(error)}`);

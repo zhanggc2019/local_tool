@@ -1,4 +1,4 @@
-import { PDFManageService, type PDFSource } from '../../../bindings/example.com/pdf-desktop';
+import { PDFManageService, type PDFSource } from '../../../bindings/example.com/pdf-desktop/internal/app';
 
 type Mode = 'merge' | 'split' | 'compress';
 let mode: Mode = 'merge';

@@ -4,12 +4,18 @@ package photoexport
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/binary"
 	"errors"
+	"hash/crc32"
 	"image/jpeg"
+	"image/png"
 	"strings"
 )
 
 const maxPhotoBytes = 8 << 20
+
+// pngPixelsPerMeter is 300 DPI expressed in pixels per metre.
+const pngPixelsPerMeter = 11811
 
 // Spec describes the physical and pixel size of one ID photo preset at 300 DPI.
 type Spec struct {
@@ -39,6 +45,8 @@ func ColorLabel(color string) (string, error) {
 		return "蓝底", nil
 	case "red":
 		return "红底", nil
+	case "white":
+		return "白底", nil
 	default:
 		return "", errors.New("不支持的背景颜色")
 	}
@@ -84,6 +92,57 @@ func setJFIFDensity(data []byte) []byte {
 	}
 	app0 := []byte{0xff, 0xe0, 0x00, 0x10, 'J', 'F', 'I', 'F', 0x00, 0x01, 0x02, 0x01, 0x01, 0x2c, 0x01, 0x2c, 0x00, 0x00}
 	return append(append([]byte{}, data[:2]...), append(app0, data[2:]...)...)
+}
+
+// DecodePNG validates PNG dimensions and writes 300 DPI pHYs metadata.
+func DecodePNG(encoded string, spec Spec) ([]byte, error) {
+	if len(encoded) > base64.StdEncoding.EncodedLen(maxPhotoBytes) {
+		return nil, errors.New("证件照文件过大")
+	}
+	data, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil || len(data) == 0 || len(data) > maxPhotoBytes {
+		return nil, errors.New("证件照数据无效")
+	}
+	config, err := png.DecodeConfig(bytes.NewReader(data))
+	if err != nil || config.Width != spec.Width || config.Height != spec.Height {
+		return nil, errors.New("证件照尺寸与所选规格不匹配")
+	}
+	return setPNGDensity(data)
+}
+
+// setPNGDensity inserts a 300 DPI pHYs chunk directly after IHDR, replacing
+// any existing density chunk so the image keeps a single pHYs entry.
+func setPNGDensity(data []byte) ([]byte, error) {
+	const signature = "\x89PNG\r\n\x1a\n"
+	// Signature (8) + IHDR chunk (length 4 + type 4 + data 13 + CRC 4).
+	const ihdrEnd = 33
+	if len(data) < ihdrEnd || !bytes.Equal(data[:8], []byte(signature)) || string(data[12:16]) != "IHDR" {
+		return nil, errors.New("证件照数据不是有效的 PNG")
+	}
+	chunk := make([]byte, 4+4+9+4)
+	binary.BigEndian.PutUint32(chunk[0:4], 9)
+	copy(chunk[4:8], "pHYs")
+	binary.BigEndian.PutUint32(chunk[8:12], pngPixelsPerMeter)
+	binary.BigEndian.PutUint32(chunk[12:16], pngPixelsPerMeter)
+	chunk[16] = 1 // unit: metre
+	binary.BigEndian.PutUint32(chunk[17:21], crc32.ChecksumIEEE(chunk[4:17]))
+
+	output := make([]byte, 0, len(data)+len(chunk))
+	output = append(output, data[:ihdrEnd]...)
+	output = append(output, chunk...)
+	for position := ihdrEnd; position+12 <= len(data); {
+		length := int(binary.BigEndian.Uint32(data[position : position+4]))
+		end := position + 12 + length
+		if end > len(data) {
+			output = append(output, data[position:]...)
+			return output, nil
+		}
+		if string(data[position+4:position+8]) != "pHYs" {
+			output = append(output, data[position:end]...)
+		}
+		position = end
+	}
+	return output, nil
 }
 
 // DefaultFilename creates a predictable name for a selected size and color.

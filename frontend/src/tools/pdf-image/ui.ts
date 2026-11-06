@@ -1,8 +1,8 @@
-import { PDFExportService } from '../../../bindings/example.com/pdf-desktop';
+import { PDFExportService } from '../../../bindings/example.com/pdf-desktop/internal/app';
 import { convertPDF, estimateLayout, loadPDF, renderPreview, type LoadedPDF, type ConversionOptions } from './converter';
 import type { ExportMode, ImageFormat } from './layout';
 import { chooseSources, readSource } from '../source-file';
-import type { LocalSource } from '../../../bindings/example.com/pdf-desktop';
+import type { LocalSource } from '../../../bindings/example.com/pdf-desktop/internal/app';
 
 let currentPDF: LoadedPDF | null = null;
 let selectedSources: LocalSource[] = [];

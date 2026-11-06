@@ -1,6 +1,6 @@
-import { WatermarkService } from '../../../bindings/example.com/pdf-desktop';
+import { WatermarkService } from '../../../bindings/example.com/pdf-desktop/internal/app';
 import { chooseSources, readSource } from '../source-file';
-import type { LocalSource } from '../../../bindings/example.com/pdf-desktop';
+import type { LocalSource } from '../../../bindings/example.com/pdf-desktop/internal/app';
 
 type Point = { x: number; y: number };
 type Stroke = { width: number; points: Point[] };

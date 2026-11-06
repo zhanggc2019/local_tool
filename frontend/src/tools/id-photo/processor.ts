@@ -1,5 +1,7 @@
+import { cutOutPersonCanvas } from '../shared/person-segmenter';
+
 export type PhotoSize = 'one' | 'two';
-export type PhotoColor = 'blue' | 'red';
+export type PhotoColor = 'blue' | 'red' | 'white';
 
 export interface PhotoSpec { label: string; width: number; height: number; mmWidth: number; mmHeight: number }
 export interface Placement { x: number; y: number; width: number; height: number; panX: number; panY: number }
@@ -9,29 +11,7 @@ export const PHOTO_SPECS: Record<PhotoSize, PhotoSpec> = {
   two: { label: '2 寸', width: 413, height: 579, mmWidth: 35, mmHeight: 49 },
 };
 
-export const PHOTO_COLORS: Record<PhotoColor, string> = { blue: '#438EDB', red: '#C9373B' };
-
-let segmenterPromise: Promise<import('@mediapipe/tasks-vision').ImageSegmenter> | null = null;
-
-/** Loads the bundled person-segmentation model and WASM runtime only on first use. */
-async function getSegmenter(): Promise<import('@mediapipe/tasks-vision').ImageSegmenter> {
-  if (!segmenterPromise) {
-    segmenterPromise = (async () => {
-      const { FilesetResolver, ImageSegmenter } = await import('@mediapipe/tasks-vision');
-      const wasm = await FilesetResolver.forVisionTasks(new URL('/mediapipe/wasm/', window.location.href).href);
-      return ImageSegmenter.createFromOptions(wasm, {
-        baseOptions: { modelAssetPath: new URL('/mediapipe/models/selfie_segmenter.tflite', window.location.href).href, delegate: 'CPU' },
-        runningMode: 'IMAGE',
-        outputCategoryMask: false,
-        outputConfidenceMasks: true,
-      });
-    })().catch((error: unknown) => {
-      segmenterPromise = null;
-      throw error;
-    });
-  }
-  return segmenterPromise;
-}
+export const PHOTO_COLORS: Record<PhotoColor, string> = { blue: '#438EDB', red: '#C9373B', white: '#FFFFFF' };
 
 /** Computes a cover crop and clamps dragging so the output has no empty edges. */
 export function calculatePlacement(sourceWidth: number, sourceHeight: number, outputWidth: number, outputHeight: number, zoom: number, panX: number, panY: number): Placement {
@@ -57,65 +37,13 @@ export function calculatePlacement(sourceWidth: number, sourceHeight: number, ou
 
 /** Segments one local image and returns a transparent canvas containing the person. */
 export async function cutOutPerson(file: File): Promise<HTMLCanvasElement> {
-  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size < 1 || file.size > 20 * 1024 * 1024) {
-    throw new Error('请选择 20 MB 以内的 JPG、PNG 或 WebP 照片');
-  }
-  const bitmap = await createImageBitmap(file);
-  try {
-    if (bitmap.width < 200 || bitmap.height < 200) throw new Error('原图分辨率太低，请选择更清晰的照片');
-    const scale = Math.min(1, 1200 / Math.max(bitmap.width, bitmap.height));
-    const width = Math.round(bitmap.width * scale);
-    const height = Math.round(bitmap.height * scale);
-    const source = document.createElement('canvas');
-    source.width = width;
-    source.height = height;
-    const sourceContext = source.getContext('2d');
-    if (!sourceContext) throw new Error('无法读取照片画布');
-    sourceContext.imageSmoothingQuality = 'high';
-    sourceContext.drawImage(bitmap, 0, 0, width, height);
-
-    const segmenter = await getSegmenter();
-    const result = segmenter.segment(source);
-    try {
-      const personMask = result.confidenceMasks?.[0];
-      if (!personMask) throw new Error('人像识别未返回有效结果');
-      const values = personMask.getAsFloat32Array();
-      const maskCanvas = document.createElement('canvas');
-      maskCanvas.width = personMask.width;
-      maskCanvas.height = personMask.height;
-      const maskContext = maskCanvas.getContext('2d');
-      if (!maskContext) throw new Error('无法创建人像蒙版');
-      const pixels = maskContext.createImageData(maskCanvas.width, maskCanvas.height);
-      let personPixels = 0;
-      for (let index = 0; index < values.length; index++) {
-        const confidence = values[index];
-        if (confidence > 0.5) personPixels++;
-        const alpha = Math.max(0, Math.min(1, (confidence - 0.12) / 0.72));
-        const offset = index * 4;
-        pixels.data[offset] = 255;
-        pixels.data[offset + 1] = 255;
-        pixels.data[offset + 2] = 255;
-        pixels.data[offset + 3] = Math.round(alpha * alpha * (3 - 2 * alpha) * 255);
-      }
-      if (personPixels < values.length * 0.01) throw new Error('未识别到清晰的人像，请更换正面照片');
-      maskContext.putImageData(pixels, 0, 0);
-      const cutout = document.createElement('canvas');
-      cutout.width = width;
-      cutout.height = height;
-      const cutoutContext = cutout.getContext('2d');
-      if (!cutoutContext) throw new Error('无法创建证件照画布');
-      cutoutContext.drawImage(source, 0, 0);
-      cutoutContext.globalCompositeOperation = 'destination-in';
-      cutoutContext.imageSmoothingEnabled = true;
-      cutoutContext.imageSmoothingQuality = 'high';
-      cutoutContext.drawImage(maskCanvas, 0, 0, width, height);
-      return cutout;
-    } finally {
-      result.close();
-    }
-  } finally {
-    bitmap.close();
-  }
+  return cutOutPersonCanvas(file, {
+    minDimension: 200,
+    maxDimension: 1200,
+    minPersonRatio: 0.01,
+    tooSmallMessage: '原图分辨率太低，请选择更清晰的照片',
+    notFoundMessage: '未识别到清晰的人像，请更换正面照片',
+  });
 }
 
 /** Draws the selected solid background and cropped person at exact output pixels. */
@@ -139,4 +67,11 @@ export function encodePhoto(canvas: HTMLCanvasElement): string {
   const data = canvas.toDataURL('image/jpeg', 0.92);
   if (!data.startsWith('data:image/jpeg;base64,')) throw new Error('证件照编码失败');
   return data.slice('data:image/jpeg;base64,'.length);
+}
+
+/** Encodes the finished canvas as a PNG payload for the Go save service. */
+export function encodePhotoPNG(canvas: HTMLCanvasElement): string {
+  const data = canvas.toDataURL('image/png');
+  if (!data.startsWith('data:image/png;base64,')) throw new Error('证件照编码失败');
+  return data.slice('data:image/png;base64,'.length);
 }

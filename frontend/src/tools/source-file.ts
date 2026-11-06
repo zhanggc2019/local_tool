@@ -1,6 +1,6 @@
-import { SourceFileService, type LocalSource } from '../../bindings/example.com/pdf-desktop';
+import { SourceFileService, type LocalSource } from '../../bindings/example.com/pdf-desktop/internal/app';
 
-export type SourceKind = 'pdf-image' | 'photo' | 'watermark';
+export type SourceKind = 'pdf-image' | 'pdf-text' | 'photo' | 'watermark' | 'cutout' | 'stamp' | 'stitch';
 
 /** Opens the native file picker so every source retains its Windows path. */
 export async function chooseSources(kind: SourceKind, multiple: boolean): Promise<LocalSource[]> {

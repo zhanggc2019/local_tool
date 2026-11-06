@@ -1,5 +1,5 @@
 import QRCode from 'qrcode';
-import { QRCodeService } from '../../../bindings/example.com/pdf-desktop';
+import { QRCodeService } from '../../../bindings/example.com/pdf-desktop/internal/app';
 import { normalizeWebURL } from './url';
 
 let generated = false;

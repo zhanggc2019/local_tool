@@ -1,4 +1,4 @@
-import { VideoAudioService, type LocalSource } from '../../../bindings/example.com/pdf-desktop';
+import { VideoAudioService, type LocalSource } from '../../../bindings/example.com/pdf-desktop/internal/app';
 
 let files: LocalSource[] = [];
 let busy = false;

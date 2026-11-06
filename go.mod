@@ -5,6 +5,7 @@ go 1.26.0
 require (
 	github.com/pdfcpu/pdfcpu v0.11.1
 	github.com/wailsapp/wails/v3 v3.0.0
+	golang.org/x/image v0.45.0
 	golang.org/x/sys v0.48.0
 )
 
@@ -23,7 +24,6 @@ require (
 	github.com/mattn/go-runewidth v0.0.19 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	golang.org/x/crypto v0.57.0 // indirect
-	golang.org/x/image v0.45.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

@@ -1,4 +1,4 @@
-import { PortService, type PortOwner } from '../../../bindings/example.com/pdf-desktop';
+import { PortService, type PortOwner } from '../../../bindings/example.com/pdf-desktop/internal/app';
 
 let busy = false;
 let activePort = 0;
